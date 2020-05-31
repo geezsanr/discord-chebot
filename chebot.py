@@ -9,8 +9,7 @@ import pyowm
 
 
     
-weather_api = '4d22146b5f8d2d5d782a9bee9ec4138a'
-TOKEN = 'NTM2OTE2NDkwNjg4MDA0MTE3.Xs1e3g.7H5mptZns7-41wLNQn_iGzyjedU'
+
 
 client = commands.Bot(command_prefix='*')
 
