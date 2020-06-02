@@ -2,16 +2,16 @@ import discord
 from discord.ext import commands
 from discord.ext.commands import Bot
 from discord.voice_client import VoiceClient
+from discord.utils import get
 import asyncio
 import requests
 import json
-from google_images_download import google_images_download  
 import random
-
+import os
+import youtube_dl
 
 
 base_url = 'http://api.openweathermap.org/data/2.5/weather?'
-response_image = google_images_download.googleimagesdownload() 
 bot = commands.Bot(command_prefix='*')
 
 f = open('keys.json',)
@@ -45,8 +45,6 @@ async def tiempo(ctx,*,args):
     print(x)
     weather = x['weather']
     
-
-
     embed = discord.Embed(
         title = 'El tiempo en '+sitio,
         description = str(weather[0]['description']).capitalize(),
@@ -57,6 +55,77 @@ async def tiempo(ctx,*,args):
     embed.add_field(name='Humedad',value=str(x['main']['humidity'])+'%',inline=True)
 
     await ctx.message.channel.send(embed=embed)
+
+@bot.command()
+async def join(ctx,*,channel: str):
+    global voice
+
+    if channel == 'self':
+        channel_new = ctx.message.author.voice.channel
+    else:
+        channel_new = discord.VoiceChannel.name(channel)
+
+    voice = get(bot.voice_clients, guild=ctx.guild)
+
+    if voice and voice.is_connected():
+        await voice.move_to(channel_new)
+    else:
+        voice = await channel_new.connect()
+
+@bot.command()
+async def leave(ctx):
+
+    channel = ctx.message.author.voice.channel
+    voice = get(bot.voice_clients, guild=ctx.guild)
+
+    if voice and voice.is_connected():
+        await voice.disconnect()
+        print(f'**Desconectando de {channel}')
+    else:
+        print('error')
+        await ctx.message.channel.send('No estoy en ningún canal de voz subnormal')
+
+@bot.command()
+async def play(ctx, url: str):
+    song_there = os.path.isfile('song.mp3')
+    try:
+        if song_there:
+            os.remove('song.mp3')
+            print('**Borrada antigua cancion')
+    except PermissionError:
+        print('**Intentando borrar la antigua canción, pero está siendo escuchada')
+        await ctx.message.channel.send('La canción se está playeando, bonobo.')
+        return
+
+    await ctx.message.channel.send('Preparándolo todo mi pana.')
+
+    voice = get(bot.voice_clients, guild=ctx.guild)
+
+    ydl_opts = {
+        'format': 'bestaudio/best',
+        'postprocessors': [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': 'mp3',
+            'preferredquality': '192',
+        }],
+    }
+
+    with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+        print('**descargando audio ahorita\n')
+        ydl.download([url])
+
+    for file in os.listdir('./'):
+        if file.endswith('.mp3'):
+            name = file
+            print(f'**Renombrado el archivo: {file}')
+            os.rename(file, 'song.mp3')
+
+    voice.play(discord.FFmpegPCMAudio('song.mp3'), after=lambda e: print(f'{name} ha terminado de sonar'))
+    voice.source = discord.PCMVolumeTransformer(voice.source)
+    voice.source.volume = 0.07
+
+    await ctx.message.channel.send(f'Sonando: {name}')
+    print('**playing\n')
 
 @bot.command()
 async def userinfo(ctx, member: discord.Member):
@@ -74,6 +143,7 @@ async def userinfo(ctx, member: discord.Member):
     embed.add_field(name='ID:',value=member.id, inline=False)
     embed.add_field(name='Nombre:',value=member.display_name, inline=False)
     embed.add_field(name='Creación de la cuenta:',value=member.created_at.strftime('%a, %#d %B %Y, %I:%M %p UTC') ,inline=False)
+    embed.add_field(name='En el server desde:',value=member.joined_at.strftime('%a, %#d %B %Y, %I:%M %p UTC') ,inline=False)
 
     await ctx.message.channel.send(embed=embed)
 
